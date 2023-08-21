@@ -8,9 +8,11 @@ package main;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JFrame;
@@ -23,9 +25,12 @@ import javax.swing.SwingUtilities;
  */
 public class Login extends javax.swing.JFrame {
 
+    Socket socket;
+    BufferedReader in;
+    PrintWriter out;
+    
     private int x;
     private int y;
-    DBUtils conDB;
 
     // <editor-fold defaultstate="collapsed" desc="For Frame move">
     private void initMoving(JFrame frame) {
@@ -49,9 +54,6 @@ public class Login extends javax.swing.JFrame {
      * Creates new form Login
      */
     public Login() {
-        conDB = new DBUtils();
-        conDB.connectDB();
-
         initComponents();
         simpleLoginButtonBar1.initEvent(this);
         initMoving(this);
@@ -100,8 +102,7 @@ public class Login extends javax.swing.JFrame {
 
         passwordField.setLabelText("Password");
 
-        roleField.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Admin", "User" }));
-        roleField.setSelectedIndex(-1);
+        roleField.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Requisition Manager", "Branch Representative" }));
         roleField.setSelectedItem(-1);
         roleField.setLabeText("Role");
 
@@ -182,48 +183,48 @@ public class Login extends javax.swing.JFrame {
         if (keyField.getText().length() <= 0 || passwordField.getPassword().length <= 0 || roleField.getSelectedIndex() < 0) {
             JOptionPane.showMessageDialog(null, "Please fill up the credentials first.");
         } else {
+            Client tempClient;
             if (roleField.getSelectedIndex() == 0) {
-                try {
-                    String sql = "Select * from Admin where Email=? and Password = ?";
-                    PreparedStatement pst = conDB.connection.prepareStatement(sql);
-                    pst.setString(1, keyField.getText());
-                    pst.setString(2, passwordField.getText());
-                    ResultSet rs = pst.executeQuery();
-                    if (rs.next()) {
-                        AdminPanel ap = new AdminPanel();
+                tempClient = new Client(keyField.getText(), new String(passwordField.getPassword()), 0);
+                tempClient.setId(tempClient.authenticate());
+                if (tempClient.getId() == 0) {
+                    JOptionPane.showMessageDialog(null, "Either Name or password is not Correct for Manager");
+                    keyField.setText("");
+                    passwordField.setText("");
+                } else {
+                    try {
+                        Socket socket = new Socket("localhost", 8000);
+                        sendIdToServer("REQUISITION_MANAGER", socket, tempClient.getId());
+                        AdminPanel ap = new AdminPanel(tempClient.getId(), socket);
                         ap.setVisible(true);
                         dispose();
-                    } else{
-                        JOptionPane.showMessageDialog(null, "Either Email or password is not Correct for Admin");
-                        keyField.setText("");
-                        passwordField.setText("");
+                    } catch (IOException ex) {
+                        Logger.getLogger(Login.class.getName()).log(Level.SEVERE, null, ex);
                     }
-                } catch (SQLException ex) {
-                    Logger.getLogger(Login.class.getName()).log(Level.SEVERE, null, ex);
                 }
             } else if (roleField.getSelectedIndex() == 1) {
-                try {
-                    String sql = "Select * from Users where Branch=? and Password = ?";
-                    PreparedStatement pst = conDB.connection.prepareStatement(sql);
-                    pst.setString(1, keyField.getText());
-                    pst.setString(2, passwordField.getText());
-                    ResultSet rs = pst.executeQuery();
-                    if (rs.next()) {
-                        UserPanel up = new UserPanel(keyField.getText());
+                tempClient = new Client(keyField.getText(), new String(passwordField.getPassword()), 1);
+                tempClient.setId(tempClient.authenticate());
+                if (tempClient.getId() == 0) {
+                    JOptionPane.showMessageDialog(null, "Either Branch or password is not Correct for Branch Representative");
+                    keyField.setText("");
+                    passwordField.setText("");
+                } else {
+                    try {
+                        Socket socket = new Socket("localhost", 8000);
+                        sendIdToServer("BRANCH_REPRESENTATIVE", socket, tempClient.getId());
+                        UserPanel up = new UserPanel(tempClient.getId(), socket);
                         up.setVisible(true);
                         dispose();
-                    } else{
-                        JOptionPane.showMessageDialog(null, "Either Branch or password is not Correct for User");
-                        keyField.setText("");
-                        passwordField.setText("");
+                    } catch (IOException ex) {
+                        Logger.getLogger(Login.class.getName()).log(Level.SEVERE, null, ex);
                     }
-                } catch (SQLException ex) {
-                    Logger.getLogger(Login.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
         }
     }//GEN-LAST:event_button1ActionPerformed
 
+    
     /**
      * @param args the command line arguments
      */
@@ -250,11 +251,13 @@ public class Login extends javax.swing.JFrame {
             java.util.logging.Logger.getLogger(Login.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
         //</editor-fold>
+        //</editor-fold>
 
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                new Login().setVisible(true);
+                Login login = new Login();
+                login.setVisible(true);
             }
         });
     }
@@ -269,4 +272,21 @@ public class Login extends javax.swing.JFrame {
     private javax.swing.JLabel signInLine;
     private titlebar.SimpleLoginButtonBar simpleLoginButtonBar1;
     // End of variables declaration//GEN-END:variables
+
+    private String formatMessage(String ... messages) {
+        StringBuilder buffer = new StringBuilder();
+        String delim = "";
+        for (String message : messages) {
+            buffer.append(delim);
+            delim = "|";
+            buffer.append(message);
+        }
+        return buffer.toString();
+    }
+    
+    private void sendIdToServer(String role, Socket clientSocket, int id) throws IOException {
+        PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+        String roleMessage = formatMessage(role, Integer.toString(id));
+        out.println(roleMessage);
+    }
 }

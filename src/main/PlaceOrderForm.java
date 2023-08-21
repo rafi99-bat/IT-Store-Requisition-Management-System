@@ -5,6 +5,7 @@
  */
 package main;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -21,52 +22,29 @@ import java.time.format.DateTimeFormatter;
 import javax.swing.JOptionPane;
 import java.time.LocalDateTime;
 import java.time.Clock;
+import database.DB;
+import server.ServerClient;
 
 /**
  *
  * @author Rafeed
  */
-public class PlaceOrderForm extends javax.swing.JPanel {
+public class PlaceOrderForm extends javax.swing.JPanel implements RefreshButtonFunction {
 
+    private ServerClient client;
     private double price;
+
     /**
      * Creates new form OrderRequestForm
      */
     public PlaceOrderForm() {
         initComponents();
-        try {
-            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-            Connection connection = DriverManager.getConnection("jdbc:sqlserver://localhost:1433;databaseName=ProjectDB;selectMethod=cursor", "sa", "123456");
-            String query1 = "SELECT DISTINCT Category FROM Product";
-            Statement st = connection.createStatement();
-            ResultSet rs = st.executeQuery(query1);
-            while (rs.next()) {
-                String category = rs.getString("Category");
-                categoryBox.addItem(category);
-            }
-            if (categoryBox.getSelectedIndex() != -1) {
-                mNameBox.removeAllItems();
-                String query2 = "SELECT ModelName FROM Product where Category = " + "'" + categoryBox.getSelectedItem().toString() + "'";
-                st = connection.createStatement();
-                rs = st.executeQuery(query2);
-                while (rs.next()) {
-                    String mName = rs.getString("ModelName");
-                    mNameBox.addItem(mName);
-                }
-                String query3 = "SELECT Price FROM Product where ModelName = " + "'" + mNameBox.getSelectedItem().toString() + "'";
-                st = connection.createStatement();
-                rs = st.executeQuery(query3);
-                if ((rs.next())) {
-                    jSpinner1.commitEdit();
-                    int qValue = (Integer) jSpinner1.getValue();
-                    priceLabel.setText(Double.toString(Double.parseDouble(rs.getString("Price")) * qValue) + " BDT");
-                }
-            }
-        } catch (ClassNotFoundException | SQLException ex) {
-            Logger.getLogger(PlaceOrderForm.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (ParseException ex) {
-            Logger.getLogger(PlaceOrderForm.class.getName()).log(Level.SEVERE, null, ex);
-        }
+    }
+
+    public PlaceOrderForm(ServerClient client) {
+        this();
+        this.client = client;
+        showMenu();
     }
 
     /**
@@ -196,75 +174,62 @@ public class PlaceOrderForm extends javax.swing.JPanel {
 
     private void categoryBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_categoryBoxActionPerformed
         try {
-            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-            Connection connection = DriverManager.getConnection("jdbc:sqlserver://localhost:1433;databaseName=ProjectDB;selectMethod=cursor", "sa", "123456");
             if (categoryBox.getSelectedIndex() != -1) {
                 mNameBox.removeAllItems();
-                String query2 = "SELECT ModelName FROM Product where Category = " + "'" + categoryBox.getSelectedItem().toString() + "'";
-                Statement st = connection.createStatement();
-                ResultSet rs = st.executeQuery(query2);
+                ResultSet rs = new DB().executeQuery("SELECT ModelName FROM Product where Category = " + "'" + categoryBox.getSelectedItem().toString() + "'");
                 while (rs.next()) {
                     String mName = rs.getString("ModelName");
                     mNameBox.addItem(mName);
                 }
             }
-        } catch (SQLException | ClassNotFoundException ex) {
+        } catch (SQLException ex) {
             Logger.getLogger(PlaceOrderForm.class.getName()).log(Level.SEVERE, null, ex);
         }
     }//GEN-LAST:event_categoryBoxActionPerformed
 
     private void submitButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_submitButtonActionPerformed
         try {
-            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-            Connection connection = DriverManager.getConnection("jdbc:sqlserver://localhost:1433;databaseName=ProjectDB;selectMethod=cursor", "sa", "123456");
-            String query = "INSERT INTO ActiveUserRequest (Product, Quantity, Price, Date, Branch) VALUES (?, ?, ?, GETDATE(), ?)";
-            PreparedStatement pst = connection.prepareStatement(query);
-            pst.setString(1, mNameBox.getSelectedItem().toString());
-            pst.setString(2, jSpinner1.getValue().toString());
-            pst.setString(3, Double.toString(price));
-            pst.setString(4, UserPanel.getBranchName());
-            pst.executeUpdate();
-            JOptionPane.showMessageDialog(null, "Order Placed Successfully");
-        } catch (ClassNotFoundException | SQLException ex) {
+            ResultSet rs = new DB().executeQuery("SELECT * FROM Product WHERE ModelName='" + mNameBox.getSelectedItem().toString() + "'");
+            Product product = null;
+            while (rs.next()) {
+                product = new Product(rs.getInt("ModelID"), rs.getString("ModelName"), rs.getString("Category"), rs.getInt("Quantity"), rs.getDouble("Price"));
+            }
+            client.sendRequest("PLACE_ORDER", Integer.toString(product.getModelID()), jSpinner1.getValue().toString(), Double.toString(product.getPrice()));
+            if ("ORDER_PLACED".equals(client.getResponse())) {
+                JOptionPane.showMessageDialog(null, "Order placed successfully!");
+            } else {
+                JOptionPane.showMessageDialog(null, "Failed to place order.", "Order Place Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException | IOException ex) {
             Logger.getLogger(PlaceOrderForm.class.getName()).log(Level.SEVERE, null, ex);
         }
     }//GEN-LAST:event_submitButtonActionPerformed
 
     private void jSpinner1StateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_jSpinner1StateChanged
         try {
-            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-            Connection connection = DriverManager.getConnection("jdbc:sqlserver://localhost:1433;databaseName=ProjectDB;selectMethod=cursor", "sa", "123456");
-            String query = "SELECT Price FROM Product where ModelName = " + "'" + mNameBox.getSelectedItem().toString() + "'";
-            Statement st = connection.createStatement();
-            ResultSet rs = st.executeQuery(query);
+            ResultSet rs = new DB().executeQuery("SELECT Price FROM Product where ModelName = " + "'" + mNameBox.getSelectedItem().toString() + "'");
             if ((rs.next())) {
                 jSpinner1.commitEdit();
                 int qValue = (Integer) jSpinner1.getValue();
                 price = Double.parseDouble(rs.getString("Price")) * qValue;
                 priceLabel.setText(Double.toString(price) + " BDT");
             }
-        } catch (ClassNotFoundException | SQLException ex) {
-            Logger.getLogger(PlaceOrderForm.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (ParseException ex) {
+        } catch (SQLException | ParseException ex) {
             Logger.getLogger(PlaceOrderForm.class.getName()).log(Level.SEVERE, null, ex);
         }
     }//GEN-LAST:event_jSpinner1StateChanged
 
     private void mNameBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_mNameBoxActionPerformed
         try {
-            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-            Connection connection = DriverManager.getConnection("jdbc:sqlserver://localhost:1433;databaseName=ProjectDB;selectMethod=cursor", "sa", "123456");
             if (mNameBox.getSelectedIndex() != -1) {
-                String query3 = "SELECT Price FROM Product where ModelName = " + "'" + mNameBox.getSelectedItem().toString() + "'";
-                Statement st = connection.createStatement();
-                ResultSet rs = st.executeQuery(query3);
+                ResultSet rs = new DB().executeQuery("SELECT Price FROM Product where ModelName = " + "'" + mNameBox.getSelectedItem().toString() + "'");
                 if ((rs.next())) {
                     jSpinner1.commitEdit();
                     int qValue = (Integer) jSpinner1.getValue();
                     priceLabel.setText(Double.toString(Double.parseDouble(rs.getString("Price")) * qValue) + " BDT");
                 }
             }
-        } catch (ClassNotFoundException | SQLException | ParseException ex) {
+        } catch (SQLException | ParseException ex) {
             Logger.getLogger(PlaceOrderForm.class.getName()).log(Level.SEVERE, null, ex);
         }
     }//GEN-LAST:event_mNameBoxActionPerformed
@@ -282,4 +247,35 @@ public class PlaceOrderForm extends javax.swing.JPanel {
     private javax.swing.JLabel priceLabel;
     private button.Button submitButton;
     // End of variables declaration//GEN-END:variables
+
+    @Override
+    public void refresh() {
+        showMenu();
+    }
+
+    private void showMenu() {
+        try {
+            ResultSet rs = new DB().executeQuery("SELECT DISTINCT Category FROM Product");
+            while (rs.next()) {
+                String category = rs.getString("Category");
+                categoryBox.addItem(category);
+            }
+            if (categoryBox.getSelectedIndex() != -1) {
+                mNameBox.removeAllItems();
+                rs = new DB().executeQuery("SELECT ModelName FROM Product where Category = " + "'" + categoryBox.getSelectedItem().toString() + "'");
+                while (rs.next()) {
+                    String mName = rs.getString("ModelName");
+                    mNameBox.addItem(mName);
+                }
+                rs = new DB().executeQuery("SELECT Price FROM Product where ModelName = " + "'" + mNameBox.getSelectedItem().toString() + "'");
+                if ((rs.next())) {
+                    jSpinner1.commitEdit();
+                    int qValue = (Integer) jSpinner1.getValue();
+                    priceLabel.setText(Double.toString(Double.parseDouble(rs.getString("Price")) * qValue) + " BDT");
+                }
+            }
+        } catch (SQLException | ParseException ex) {
+            Logger.getLogger(PlaceOrderForm.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
 }

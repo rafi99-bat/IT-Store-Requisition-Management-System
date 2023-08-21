@@ -59,7 +59,7 @@ public class FloatingButtonUI extends LayerUI<Component> {
         Graphics2D g2 = (Graphics2D) grphcs.create();
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         int size = 40;
-        int x = size - 15;
+        int x = jc.getWidth() - size - 15;
         int y = jc.getHeight() - size - 15;
         shape = new Ellipse2D.Double(x, y, size, size);
         if (mousePressed) {

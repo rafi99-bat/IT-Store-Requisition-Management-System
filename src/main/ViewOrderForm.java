@@ -10,43 +10,34 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.table.DefaultTableModel;
+import database.DB;
+import server.ServerClient;
 import table.TableCustom;
 
 /**
  *
  * @author Rafeed
  */
-public class ViewOrderForm extends javax.swing.JPanel {
+public class ViewOrderForm extends javax.swing.JPanel implements RefreshButtonFunction {
 
+    private ServerClient client;
     /**
      * Creates new form OrderRequestForm
      */
     public ViewOrderForm() {
         initComponents();
+    }
+    
+    public ViewOrderForm(ServerClient client) {
+        this();
+        this.client = client;
         TableCustom.apply(jScrollPane1, TableCustom.TableType.MULTI_LINE);
-        DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
-        try {
-            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-            Connection connection = DriverManager.getConnection("jdbc:sqlserver://localhost:1433;databaseName=ProjectDB;selectMethod=cursor", "sa", "123456");
-            String query = "SELECT * FROM ActiveUserRequest WHERE Branch = " + "'" + UserPanel.getBranchName() + "'";
-            Statement st = connection.createStatement();
-            ResultSet rs = st.executeQuery(query);
-            Object[] row = new Object[6];
-            while (rs.next()) {
-                row[0] = rs.getString("OrderID");
-                row[1] = rs.getString("Product");
-                row[2] = rs.getString("Quantity");
-                row[3] = rs.getString("Price");
-                row[4] = rs.getString("Date");
-                row[5] = rs.getString("Status");
-                model.addRow(row);
-            }
-        } catch (ClassNotFoundException | SQLException ex) {
-            Logger.getLogger(ViewOrderForm.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        showOrder();
+        
     }
 
     /**
@@ -95,4 +86,43 @@ public class ViewOrderForm extends javax.swing.JPanel {
     private javax.swing.JTable jTable1;
     private table.TableScrollButton tableScrollButton1;
     // End of variables declaration//GEN-END:variables
+
+    @Override
+    public void refresh() {
+        showOrder();
+    }
+    
+    private ArrayList<Order> orderList() {
+        ArrayList<Order> list = new ArrayList<>();
+        try {
+            ResultSet rs = new DB().executeQuery("SELECT * FROM ActiveUserRequest WHERE BranchID = " + "'" + client.getUserID() + "'");
+            Order order;
+            while (rs.next()) {
+                order = new Order(rs.getInt("OrderID"), rs.getInt("ProductID"), rs.getInt("Quantity"), rs.getDouble("Price"), rs.getString("Date"), rs.getString("Status"), rs.getInt("BranchID"));
+                list.add(order);
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(OrderRequestForm.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return list;
+    }
+
+    private void showOrder() {
+        ArrayList<Order> orders = orderList();
+        DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
+        int rowCount = model.getRowCount();
+        for (int i = rowCount - 1; i >= 0; i--) {
+            model.removeRow(i);
+        }
+        Object[] row = new Object[6];
+        for (int i = 0; i < orders.size(); i++) {
+            row[0] = orders.get(i).getOrderID();
+            row[1] = orders.get(i).getProductName();
+            row[2] = orders.get(i).getQuantity();
+            row[3] = orders.get(i).getPrice();
+            row[4] = orders.get(i).getDate();
+            row[5] = orders.get(i).getStatus();
+            model.addRow(row);
+        }
+    }
 }

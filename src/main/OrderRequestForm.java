@@ -13,12 +13,14 @@ import combo_suggestion.ComboBoxSuggestion;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.ButtonGroup;
@@ -29,19 +31,27 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JRadioButton;
 import javax.swing.table.DefaultTableModel;
+import database.DB;
+import server.ServerClient;
 import table.TableCustom;
 
 /**
  *
  * @author Rafeed
  */
-public class OrderRequestForm extends javax.swing.JPanel {
+public class OrderRequestForm extends javax.swing.JPanel implements RefreshButtonFunction {
 
+    private ServerClient client;
     /**
      * Creates new form OrderRequestForm
      */
     public OrderRequestForm() {
         initComponents();
+    }
+    
+    public OrderRequestForm(ServerClient client) {
+        this();
+        this.client = client;
         TableCustom.apply(jScrollPane1, TableCustom.TableType.MULTI_LINE);
         TableActionEvent event = (int row) -> {
             JRadioButton pendingBtn = new JRadioButton("Hold", true);
@@ -62,111 +72,32 @@ public class OrderRequestForm extends javax.swing.JPanel {
             if (result == JOptionPane.OK_OPTION) {
                 if (acceptBtn.isSelected()) {
                     try {
-                        int pQuantity, oQuantity;
-                        Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-                        Connection connection = DriverManager.getConnection("jdbc:sqlserver://localhost:1433;databaseName=ProjectDB;selectMethod=cursor", "sa", "123456");
-                        String query1 = "SELECT Quantity FROM Product WHERE ModelName = '" + jTable1.getModel().getValueAt(row, 1).toString() + "'";
-                        Statement st = connection.createStatement();
-                        ResultSet rs = st.executeQuery(query1);
-                        if (rs.next()) {
-                            pQuantity = Integer.parseInt(rs.getString("Quantity"));
-                            String query2 = "SELECT Quantity FROM ActiveUserRequest WHERE OrderID = '" + jTable1.getModel().getValueAt(row, 0).toString() + "'";
-                            st = connection.createStatement();
-                            rs = st.executeQuery(query2);
-                            if (rs.next()) {
-                                oQuantity = Integer.parseInt(rs.getString("Quantity"));
-                                if (oQuantity < pQuantity) {
-                                    String query = "UPDATE ActiveUserRequest SET Status = 'accepted' WHERE OrderID = ?";
-                                    PreparedStatement pst = connection.prepareStatement(query);
-                                    pst.setString(1, jTable1.getModel().getValueAt(row, 0).toString());
-                                    pst.executeUpdate();
-                                    pQuantity = pQuantity - oQuantity;
-                                    String query4 = "UPDATE Product SET Quantity = ? WHERE ModelName = ?";
-                                    pst = connection.prepareStatement(query4);
-                                    pst.setString(1, Integer.toString(pQuantity));
-                                    pst.setString(2, jTable1.getModel().getValueAt(row, 1).toString());
-                                    pst.executeUpdate();
-                                    DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
-                                    model.setRowCount(0);
-                                    try {
-                                        String query3 = "SELECT * FROM ActiveUserRequest WHERE Status = 'pending'";
-                                        st = connection.createStatement();
-                                        rs = st.executeQuery(query3);
-                                        Object[] row1 = new Object[5];
-                                        while (rs.next()) {
-                                            row1[0] = rs.getString("OrderID");
-                                            row1[1] = rs.getString("Product");
-                                            row1[2] = rs.getString("Quantity");
-                                            row1[3] = rs.getString("Date");
-                                            row1[4] = rs.getString("Branch");
-                                            model.addRow(row1);
-                                        }
-                                    } catch (SQLException ex) {
-                                        Logger.getLogger(OrderRequestForm.class.getName()).log(Level.SEVERE, null, ex);
-                                    }
-                                } else {
-                                    JOptionPane.showMessageDialog(null, "Could not accept request. Product stock is lower than requested.", "Error", JOptionPane.ERROR_MESSAGE);
-                                }
-                            }
+                        client.sendRequest("RESPOND_ORDER", jTable1.getModel().getValueAt(row, 0).toString(), jTable1.getModel().getValueAt(row, 1).toString(), "accepted");
+                        if ("ORDER_ACCEPTED_SUCCESSFULLY".equals(client.getResponse())) {
+                            refresh();
+                        } else if ("ORDER_ACCEPT_FAILED".equals(client.getResponse())) {
+                            JOptionPane.showMessageDialog(null, "Failed to accept request. Product stock is lower than requested.", "Error", JOptionPane.ERROR_MESSAGE);
                         }
-                    } catch (ClassNotFoundException | SQLException ex) {
+                    } catch (IOException ex) {
                         Logger.getLogger(OrderRequestForm.class.getName()).log(Level.SEVERE, null, ex);
                     }
                 } else if (declineButton.isSelected()) {
                     try {
-                        Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-                        Connection connection = DriverManager.getConnection("jdbc:sqlserver://localhost:1433;databaseName=ProjectDB;selectMethod=cursor", "sa", "123456");
-                        String query = "UPDATE ActiveUserRequest SET Status = 'declined' WHERE OrderID = ?";
-                        PreparedStatement pst = connection.prepareStatement(query);
-                        pst.setString(1, jTable1.getModel().getValueAt(row, 0).toString());
-                        pst.executeUpdate();
-                    } catch (ClassNotFoundException | SQLException ex) {
-                        Logger.getLogger(OrderRequestForm.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                    DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
-                    model.setRowCount(0);
-                    try {
-                        Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-                        Connection connection = DriverManager.getConnection("jdbc:sqlserver://localhost:1433;databaseName=ProjectDB;selectMethod=cursor", "sa", "123456");
-                        String query3 = "SELECT * FROM ActiveUserRequest WHERE Status = 'pending'";
-                        Statement st = connection.createStatement();
-                        ResultSet rs = st.executeQuery(query3);
-                        Object[] row1 = new Object[5];
-                        while (rs.next()) {
-                            row1[0] = rs.getString("OrderID");
-                            row1[1] = rs.getString("Product");
-                            row1[2] = rs.getString("Quantity");
-                            row1[3] = rs.getString("Date");
-                            row1[4] = rs.getString("Branch");
-                            model.addRow(row1);
+                        client.sendRequest("RESPOND_ORDER", jTable1.getModel().getValueAt(row, 0).toString(), jTable1.getModel().getValueAt(row, 1).toString(), "declined");
+                        if ("ORDER_DECLINED_SUCCESSFULLY".equals(client.getResponse())) {
+                            refresh();
+                        } else if ("ORDER_DECLINE_FAILED".equals(client.getResponse())) {
+                            JOptionPane.showMessageDialog(null, "Failed to execute operation.", "Error", JOptionPane.ERROR_MESSAGE);
                         }
-                    } catch (SQLException | ClassNotFoundException ex) {
+                    } catch (IOException ex) {
                         Logger.getLogger(OrderRequestForm.class.getName()).log(Level.SEVERE, null, ex);
                     }
                 }
             }
         };
-        try {
-            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-            Connection connection = DriverManager.getConnection("jdbc:sqlserver://localhost:1433;databaseName=ProjectDB;selectMethod=cursor", "sa", "123456");
-            String query1 = "SELECT * FROM ActiveUserRequest WHERE Status = 'pending'";
-            Statement st = connection.createStatement();
-            ResultSet rs = st.executeQuery(query1);
-            DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
-            Object[] row = new Object[5];
-            while (rs.next()) {
-                row[0] = rs.getString("OrderID");
-                row[1] = rs.getString("Product");
-                row[2] = rs.getString("Quantity");
-                row[3] = rs.getString("Date");
-                row[4] = rs.getString("Branch");
-                model.addRow(row);
-            }
-        } catch (ClassNotFoundException | SQLException ex) {
-            Logger.getLogger(OrderRequestForm.class.getName()).log(Level.SEVERE, null, ex);
-        }
         jTable1.getColumnModel().getColumn(5).setCellRenderer(new TableActionCellRender());
         jTable1.getColumnModel().getColumn(5).setCellEditor(new TableActionCellEditor(event));
+        showOrderRequest();
     }
 
     /**
@@ -215,4 +146,42 @@ public class OrderRequestForm extends javax.swing.JPanel {
     private javax.swing.JTable jTable1;
     private table.TableScrollButton tableScrollButton1;
     // End of variables declaration//GEN-END:variables
+
+    @Override
+    public void refresh() {
+        showOrderRequest();
+    }
+    
+    private ArrayList<Order> orderRequestList() {
+        ArrayList<Order> list = new ArrayList<>();
+        try {
+            ResultSet rs = new DB().executeQuery("SELECT * FROM ActiveUserRequest WHERE Status = 'pending'");
+            Order order;
+            while (rs.next()) {
+                order = new Order(rs.getInt("OrderID"), rs.getInt("ProductID"), rs.getInt("Quantity"), rs.getDouble("Price"), rs.getString("Date"), rs.getString("Status"), rs.getInt("BranchID"));
+                list.add(order);
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(OrderRequestForm.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return list;
+    }
+
+    private void showOrderRequest() {
+        ArrayList<Order> orderRequests = orderRequestList();
+        DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
+        int rowCount = model.getRowCount();
+        for (int i = rowCount - 1; i >= 0; i--) {
+            model.removeRow(i);
+        }
+        Object[] row = new Object[5];
+        for (int i = 0; i < orderRequests.size(); i++) {
+            row[0] = orderRequests.get(i).getOrderID();
+            row[1] = orderRequests.get(i).getProductName();
+            row[2] = orderRequests.get(i).getQuantity();
+            row[3] = orderRequests.get(i).getDate();
+            row[4] = orderRequests.get(i).getBranchName();
+            model.addRow(row);
+        }
+    }
 }

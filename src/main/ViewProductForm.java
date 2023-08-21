@@ -9,48 +9,62 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.table.DefaultTableModel;
+import database.DB;
+import server.ServerClient;
 import table.TableCustom;
 
 /**
  *
  * @author Rafeed
  */
-public class ViewProductForm extends javax.swing.JPanel {
+public class ViewProductForm extends javax.swing.JPanel implements RefreshButtonFunction {
 
-    DBUtils conDB;
+    private ServerClient client;
     
     /**
      * Creates new form OrderRequestForm
      */
     public ViewProductForm() {
         initComponents();
+    }
+    
+    public ViewProductForm(ServerClient client) {
+        this();
+        this.client = client;
         TableCustom.apply(jScrollPane1, TableCustom.TableType.MULTI_LINE);
-        conDB = new DBUtils();
-        conDB.connectDB();
         showProduct();
     }
     
-    public void showProduct() {
+    private ArrayList<Product> productList() {
         ArrayList<Product> list = new ArrayList<>();
         try {
-            String query1 = "SELECT * FROM Product";
-            Statement st = conDB.connection.createStatement();
-            ResultSet rs = st.executeQuery(query1);
+            ResultSet rs = new DB().executeQuery("SELECT * FROM Product");
             Product p;
             while (rs.next()) {
-                p = new Product(rs.getString("ModelName"), rs.getString("Category"), rs.getInt("Quantity"), rs.getDouble("Price"));
+                p = new Product(rs.getInt("ModelID"), rs.getString("ModelName"), rs.getString("Category"), rs.getDouble("Price"));
                 list.add(p);
             }
-        } catch (SQLException e) {
+        } catch (SQLException ex) {
+            Logger.getLogger(ProductsForm.class.getName()).log(Level.SEVERE, null, ex);
         }
-        //ArrayList<Product> list = productList();
+        return list;
+    }
+    
+    private void showProduct() {
+        ArrayList<Product> products = productList();
         DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
+        int rowCount = model.getRowCount();
+        for (int i = rowCount - 1; i >= 0; i--) {
+            model.removeRow(i);
+        }
         Object[] row = new Object[3];
-        for (int i = 0; i < list.size(); i++) {
-            row[0] = list.get(i).getModelName();
-            row[1] = list.get(i).getCategory();
-            row[2] = list.get(i).getPrice();
+        for (int i = 0; i < products.size(); i++) {
+            row[0] = products.get(i).getModelName();
+            row[1] = products.get(i).getCategory();
+            row[2] = products.get(i).getPrice();
             model.addRow(row);
         }
     }
@@ -101,4 +115,9 @@ public class ViewProductForm extends javax.swing.JPanel {
     private javax.swing.JTable jTable1;
     private table.TableScrollButton tableScrollButton1;
     // End of variables declaration//GEN-END:variables
+
+    @Override
+    public void refresh() {
+        showProduct();
+    }
 }

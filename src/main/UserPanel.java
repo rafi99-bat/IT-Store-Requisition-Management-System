@@ -13,10 +13,18 @@ import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.io.IOException;
+import java.net.Socket;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.UIManager;
 import message.MessageDialog;
+import database.DB;
+import server.ServerClient;
 
 /**
  *
@@ -27,10 +35,12 @@ public class UserPanel extends javax.swing.JFrame {
     private DrawerController drawer;
     private static String branchName;
     private CardLayout cardLayout;
+    private Component currentComponent;
 
-    //private PlaceOrderForm placeOrder;
-    //private ViewOrderForm viewOrder;
-    //private ViewProductForm viewProduct;
+    private int branchID;
+    private Socket socket;
+    private ServerClient representative;
+
     /**
      * Creates new form AdminPanel
      */
@@ -38,54 +48,78 @@ public class UserPanel extends javax.swing.JFrame {
         initComponents();
     }
 
-    public UserPanel(String name) {
+    public UserPanel(int id, Socket socket) {
         this();
-        setBranchName(name);
-        placeOrder = new PlaceOrderForm();
-        viewOrder = new ViewOrderForm();
-        viewProduct = new ViewProductForm();
-        pendingOrders = new PendingOrdersForm();
-        titleBar.init(this);
-        drawer = Drawer.newDrawer(this)
-                .header(new UserHeader(name))
-                .space(5)
-                .enableScroll(true)
-                .addChild(new DrawerItem("Place Order").build())
-                .addChild(new DrawerItem("View Orders").build())
-                .addChild(new DrawerItem("View Products").build())
-                .addChild(new DrawerItem("Pending Orders").build())
-                .addFooter(new DrawerItem("Sign out").icon(new ImageIcon(getClass().getResource("/icon/exit.png"))).build())
-                .event(new EventDrawer() {
-                    @Override
-                    public void selected(int i, DrawerItem di) {
-                        switch (i) {
-                            case 0:
-                                showForm(placeOrder);
-                                break;
-                            case 1:
-                                showForm(viewOrder);
-                                break;
-                            case 2:
-                                showForm(viewProduct);
-                                break;
-                            case 3:
-                                showForm(pendingOrders);
-                                break;
-                            case 4:
-                                dispose();
-                                Login login = new Login();
-                                login.setVisible(true);
-                                break;
+        try {
+            this.socket = socket;
+            representative = new ServerClient(id, socket);
+            ResultSet rs = new DB().executeQuery("SELECT * FROM Users WHERE BranchID = " + id);
+            if (rs.next()) {
+                setBranchName(rs.getString("Branch"));
+            }
+            placeOrder = new PlaceOrderForm(representative);
+            viewOrder = new ViewOrderForm(representative);
+            viewProduct = new ViewProductForm(representative);
+            pendingOrders = new PendingOrdersForm(representative);
+            titleBar.init(this);
+            currentComponent = viewProduct;
+            drawer = Drawer.newDrawer(this)
+                    .header(new UserHeader(branchName))
+                    .space(5)
+                    .enableScroll(true)
+                    .addChild(new DrawerItem("Place Order").build())
+                    .addChild(new DrawerItem("View Orders").build())
+                    .addChild(new DrawerItem("View Products").build())
+                    .addChild(new DrawerItem("Pending Orders").build())
+                    .addFooter(new DrawerItem("Sign out").icon(new ImageIcon(getClass().getResource("/icon/exit.png"))).build())
+                    .event(new EventDrawer() {
+                        @Override
+                        public void selected(int i, DrawerItem di) {
+                            switch (i) {
+                                case 0:
+                                    currentComponent = placeOrder;
+                                    showForm(currentComponent);
+                                    break;
+                                case 1:
+                                    currentComponent = viewOrder;
+                                    showForm(currentComponent);
+                                    break;
+                                case 2:
+                                    currentComponent = viewProduct;
+                                    showForm(currentComponent);
+                                    break;
+                                case 3:
+                                    currentComponent = pendingOrders;
+                                    showForm(currentComponent);
+                                    break;
+                                case 4: {
+                                    try {
+                                        socket.close();
+                                        System.out.println("Client disconnected: ID " + id + " Role " + "BRANCH_REPRESENTATIVE");
+                                    } catch (IOException ex) {
+                                        Logger.getLogger(UserPanel.class.getName()).log(Level.SEVERE, null, ex);
+                                    } finally {
+                                        dispose();
+                                        Login login = new Login();
+                                        login.setVisible(true);
+                                    }
+                                    break;
+                                }
+                            }
                         }
-                    }
-                })
-                .build();
+                    })
+                    .build();
+        } catch (SQLException | IOException ex) {
+            Logger.getLogger(UserPanel.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        currentComponent = placeOrder;
+        showForm(currentComponent);
     }
-    
+
     public final void setBranchName(String name) {
         branchName = name;
     }
-    
+
     public static String getBranchName() {
         return branchName;
     }
@@ -98,6 +132,22 @@ public class UserPanel extends javax.swing.JFrame {
         mainMenu.add(c);
         mainMenu.repaint();
         mainMenu.revalidate();
+    }
+    
+    private void refresh(Object form) {
+        if (form instanceof PlaceOrderForm) {
+            PlaceOrderForm c = (PlaceOrderForm) form;
+            c.refresh();
+        } else if (form instanceof ViewOrderForm) {
+            ViewOrderForm c = (ViewOrderForm) form;
+            c.refresh();
+        } else if (form instanceof ViewProductForm) {
+            ViewProductForm c = (ViewProductForm) form;
+            c.refresh();
+        } else if (form instanceof PendingOrdersForm) {
+            PendingOrdersForm c = (PendingOrdersForm) form;
+            c.refresh();
+        }
     }
 
     /**
@@ -113,6 +163,7 @@ public class UserPanel extends javax.swing.JFrame {
         titleBar = new titlebar.SimpleTitleBar();
         jPanel1 = new javax.swing.JPanel();
         menuButton = new javax.swing.JButton();
+        jButton1 = new javax.swing.JButton();
         mainMenu = new javax.swing.JPanel();
         placeOrder = new main.PlaceOrderForm();
         viewOrder = new main.ViewOrderForm();
@@ -122,7 +173,6 @@ public class UserPanel extends javax.swing.JFrame {
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setBackground(new java.awt.Color(255, 255, 255));
         setUndecorated(true);
-        setPreferredSize(new java.awt.Dimension(1000, 640));
         setSize(new java.awt.Dimension(1000, 640));
 
         jLayeredPane1.setBackground(new java.awt.Color(255, 255, 255));
@@ -134,9 +184,23 @@ public class UserPanel extends javax.swing.JFrame {
         menuButton.setBorder(null);
         menuButton.setBorderPainted(false);
         menuButton.setContentAreaFilled(false);
+        menuButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         menuButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 menuButtonActionPerformed(evt);
+            }
+        });
+
+        jButton1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/icon/refresh.png"))); // NOI18N
+        jButton1.setBorder(null);
+        jButton1.setBorderPainted(false);
+        jButton1.setContentAreaFilled(false);
+        jButton1.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        jButton1.setMaximumSize(new java.awt.Dimension(35, 35));
+        jButton1.setMinimumSize(new java.awt.Dimension(35, 35));
+        jButton1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton1ActionPerformed(evt);
             }
         });
 
@@ -146,11 +210,14 @@ public class UserPanel extends javax.swing.JFrame {
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addComponent(menuButton, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, 0)
+                .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(0, 0, Short.MAX_VALUE))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(menuButton, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE)
+            .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE)
         );
 
         mainMenu.setBackground(new java.awt.Color(255, 255, 255));
@@ -230,6 +297,10 @@ public class UserPanel extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_menuButtonActionPerformed
 
+    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+        refresh(currentComponent);
+    }//GEN-LAST:event_jButton1ActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -252,6 +323,8 @@ public class UserPanel extends javax.swing.JFrame {
         }
         //</editor-fold>
         //</editor-fold>
+        //</editor-fold>
+        //</editor-fold>
 
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
@@ -263,6 +336,7 @@ public class UserPanel extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton jButton1;
     private javax.swing.JLayeredPane jLayeredPane1;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel mainMenu;

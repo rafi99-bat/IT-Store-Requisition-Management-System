@@ -9,12 +9,14 @@ import cell.TableActionCellEditor;
 import cell.TableActionCellRender;
 import cell.TableActionEvent;
 import java.awt.Font;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JComponent;
@@ -26,14 +28,17 @@ import javax.swing.SpinnerModel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.table.DefaultTableModel;
+import database.DB;
+import server.ServerClient;
 import table.TableCustom;
 
 /**
  *
  * @author Rafeed
  */
-public class PendingOrdersForm extends javax.swing.JPanel {
+public class PendingOrdersForm extends javax.swing.JPanel implements RefreshButtonFunction {
 
+    private ServerClient client;
     double price;
 
     /**
@@ -41,6 +46,11 @@ public class PendingOrdersForm extends javax.swing.JPanel {
      */
     public PendingOrdersForm() {
         initComponents();
+    }
+
+    public PendingOrdersForm(ServerClient client) {
+        this();
+        this.client = client;
         TableCustom.apply(jScrollPane1, TableCustom.TableType.MULTI_LINE);
         TableActionEvent event = new TableActionEvent() {
             @Override
@@ -63,33 +73,15 @@ public class PendingOrdersForm extends javax.swing.JPanel {
                 int result = JOptionPane.showConfirmDialog(null, inputs, "Update Quantity", JOptionPane.PLAIN_MESSAGE);
                 if (result == JOptionPane.OK_OPTION) {
                     try {
-                        Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-                        Connection connection = DriverManager.getConnection("jdbc:sqlserver://localhost:1433;databaseName=ProjectDB;selectMethod=cursor", "sa", "123456");
-                        String query = "UPDATE ActiveUserRequest SET Price = (Price / Quantity) * ?, Quantity = ? WHERE OrderID = ?";
-                        PreparedStatement pst = connection.prepareStatement(query);
-                        pst.setString(1, quantityField.getValue().toString());
-                        pst.setString(2, quantityField.getValue().toString());
-                        pst.setString(3, orderID);
-                        pst.executeUpdate();
-                        DefaultTableModel model = (DefaultTableModel) pendingTable.getModel();
-                        model.setRowCount(0);
-                        try {
-                            String query1 = "SELECT * FROM ActiveUserRequest WHERE Branch = " + "'" + UserPanel.getBranchName() + "' " + "AND Status = 'pending'";
-                            Statement st = connection.createStatement();
-                            ResultSet rs = st.executeQuery(query1);
-                            Object[] data = new Object[5];
-                            while (rs.next()) {
-                                data[0] = rs.getString("OrderID");
-                                data[1] = rs.getString("Product");
-                                data[2] = rs.getString("Quantity");
-                                data[3] = rs.getString("Price");
-                                data[4] = rs.getString("Date");
-                                model.addRow(data);
-                            }
-                        } catch (SQLException ex) {
-                            Logger.getLogger(PendingOrdersForm.class.getName()).log(Level.SEVERE, null, ex);
+                        client.sendRequest("UPDATE_ORDER", orderID, pNameField.getText(), quantityField.getValue().toString());
+                        if ("PRODUCT_NOT_FOUND".equals(client.getResponse())) {
+                            JOptionPane.showMessageDialog(null, "Sorry, unable to process your updated request as the desired product is not available anymore.", "Update Error", JOptionPane.ERROR_MESSAGE);
+                        } else if ("ORDER_UPDATED".equals(client.getResponse())) {
+                            refresh();
+                        } else if ("ORDER_COULD_NOT_UPDATE".equals(client.getResponse())) {
+                            JOptionPane.showMessageDialog(null, "Sorry, unable to process your updated request as the desired quantity exceeds the current stock availability.", "Update Error", JOptionPane.ERROR_MESSAGE);
                         }
-                    } catch (ClassNotFoundException | SQLException ex) {
+                    } catch (IOException ex) {
                         Logger.getLogger(PendingOrdersForm.class.getName()).log(Level.SEVERE, null, ex);
                     }
                 }
@@ -99,56 +91,20 @@ public class PendingOrdersForm extends javax.swing.JPanel {
             public void onDelete(int row) {
                 String orderID = pendingTable.getModel().getValueAt(row, 0).toString();
                 try {
-                    Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-                    Connection connection = DriverManager.getConnection("jdbc:sqlserver://localhost:1433;databaseName=ProjectDB;selectMethod=cursor", "sa", "123456");
-                    String query = "DELETE FROM ActiveUserRequest WHERE OrderID = ?";
-                    PreparedStatement pst = connection.prepareStatement(query);
-                    pst.setString(1, orderID);
-                    pst.executeUpdate();
-                    DefaultTableModel model = (DefaultTableModel) pendingTable.getModel();
-                    model.setRowCount(0);
-                    try {
-                        String query1 = "SELECT * FROM ActiveUserRequest WHERE Branch = " + "'" + UserPanel.getBranchName() + "' " + "AND Status = 'pending'";
-                        Statement st = connection.createStatement();
-                        ResultSet rs = st.executeQuery(query1);
-                        Object[] data = new Object[5];
-                        while (rs.next()) {
-                            data[0] = rs.getString("OrderID");
-                            data[1] = rs.getString("Product");
-                            data[2] = rs.getString("Quantity");
-                            data[3] = rs.getString("Price");
-                            data[4] = rs.getString("Date");
-                            model.addRow(data);
-                        }
-                    } catch (SQLException ex) {
-                        Logger.getLogger(PendingOrdersForm.class.getName()).log(Level.SEVERE, null, ex);
+                    client.sendRequest("DELECT_ORDER", orderID);
+                    if ("DELETION_SUCCESS".equals(client.getResponse())) {
+                        refresh();
+                    } else if ("DELETION_FAILED".equals(client.getResponse())) {
+                        JOptionPane.showMessageDialog(null, "Sorry, unable to delete your order. Please try again", "Delete Error", JOptionPane.ERROR_MESSAGE);
                     }
-                } catch (ClassNotFoundException | SQLException ex) {
+                } catch (IOException ex) {
                     Logger.getLogger(PendingOrdersForm.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
         };
-        DefaultTableModel model = (DefaultTableModel) pendingTable.getModel();
         pendingTable.getColumnModel().getColumn(5).setCellRenderer(new TableActionCellRender());
         pendingTable.getColumnModel().getColumn(5).setCellEditor(new TableActionCellEditor(event));
-        try {
-            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-            Connection connection = DriverManager.getConnection("jdbc:sqlserver://localhost:1433;databaseName=ProjectDB;selectMethod=cursor", "sa", "123456");
-            String query = "SELECT * FROM ActiveUserRequest WHERE Branch = " + "'" + UserPanel.getBranchName() + "' " + "AND Status = 'pending'";
-            Statement st = connection.createStatement();
-            ResultSet rs = st.executeQuery(query);
-            Object[] data = new Object[5];
-            while (rs.next()) {
-                data[0] = rs.getString("OrderID");
-                data[1] = rs.getString("Product");
-                data[2] = rs.getString("Quantity");
-                data[3] = rs.getString("Price");
-                data[4] = rs.getString("Date");
-                model.addRow(data);
-            }
-        } catch (ClassNotFoundException | SQLException ex) {
-            Logger.getLogger(PendingOrdersForm.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        showPendingOrders();
     }
 
     /**
@@ -198,4 +154,42 @@ public class PendingOrdersForm extends javax.swing.JPanel {
     private javax.swing.JTable pendingTable;
     private table.TableScrollButton tableScrollButton1;
     // End of variables declaration//GEN-END:variables
+
+    @Override
+    public void refresh() {
+        showPendingOrders();
+    }
+
+    private ArrayList<Order> pendingOrders() {
+        ArrayList<Order> list = new ArrayList<>();
+        try {
+            ResultSet rs = new DB().executeQuery("SELECT * FROM ActiveUserRequest WHERE BranchID = " + "'" + client.getUserID() + "' " + "AND Status = 'pending'");
+            Order order;
+            while (rs.next()) {
+                order = new Order(rs.getInt("OrderID"), rs.getInt("ProductID"), rs.getInt("Quantity"), rs.getDouble("Price"), rs.getString("Date"), rs.getString("Status"), rs.getInt("BranchID"));
+                list.add(order);
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(PendingOrdersForm.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return list;
+    }
+
+    private void showPendingOrders() {
+        ArrayList<Order> pendingOrders = pendingOrders();
+        DefaultTableModel model = (DefaultTableModel) pendingTable.getModel();
+        int rowCount = model.getRowCount();
+        for (int i = rowCount - 1; i >= 0; i--) {
+            model.removeRow(i);
+        }
+        Object[] data = new Object[5];
+        for (int i = 0; i < pendingOrders.size(); i++) {
+            data[0] = pendingOrders.get(i).getOrderID();
+            data[1] = pendingOrders.get(i).getProductName();
+            data[2] = pendingOrders.get(i).getQuantity();
+            data[3] = pendingOrders.get(i).getPrice();
+            data[4] = pendingOrders.get(i).getDate();
+            model.addRow(data);
+        }
+    }
 }

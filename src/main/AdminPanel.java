@@ -12,10 +12,18 @@ import drawer.EventDrawer;
 import fButton.floating.FloatingButtonUI;
 import java.awt.Color;
 import java.awt.Component;
+import java.io.IOException;
+import java.net.Socket;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JLayer;
 import message.MessageDialog;
+import database.DB;
+import server.ServerClient;
 
 /**
  *
@@ -25,62 +33,111 @@ public class AdminPanel extends javax.swing.JFrame {
 
     private DrawerController drawer;
     private main.ProductsForm products;
+    private Socket socket;
+
+    private ServerClient manager;
+    private Component currentComponent;
+
     /**
      * Creates new form AdminPanel
      */
     public AdminPanel() {
         initComponents();
-        products = new main.ProductsForm();
-        JLayer l = new JLayer(products, new FloatingButtonUI());
-        mainMenu.add(l, "card3");
-        titleBar.init(this);
-        drawer = Drawer.newDrawer(this)
-                .header(new AdminHeader())
-                .space(5)
-                .enableScroll(true)
-                .addChild(new DrawerItem("Order Request").build())
-                .addChild(new DrawerItem("Resolved Delivery").build())
-                .addChild(new DrawerItem("Unresolved Delivery").build())
-                .addChild(new DrawerItem("Products").build())
-                .addFooter(new DrawerItem("Sign out").icon(new ImageIcon(getClass().getResource("/icon/exit.png"))).build())
-                .event(new EventDrawer() {
-                    @Override
-                    public void selected(int i, DrawerItem di){
-                        //System.out.println(i);
-                        switch(i) {
-                            case 0:
-                                showForm(orderRequest);
-                                break;
-                            case 1:
-                                showForm(resolvedDelivery);
-                                break;
-                            case 2:
-                                showForm(unresolvedDelivery);
-                                break;
-                            case 3:
-                                showForm(l);
-                                break;
-                            case 4:
-                                dispose();
-                                Login login = new Login();
-                                login.setVisible(true);
-                                break;
-                        }
-                    }
-                })
-                .build();
     }
-    
+
+    public AdminPanel(int id, Socket socket) {
+        this();
+        try {
+            this.socket = socket;
+            manager = new ServerClient(id, socket);
+            orderRequest = new OrderRequestForm(manager);
+            resolvedDelivery = new ResolvedDeliveryForm(manager);
+            unresolvedDelivery = new UnresolvedDeliveryForm(manager);
+            products = new ProductsForm(manager);
+            currentComponent = products;
+            JLayer l = new JLayer(currentComponent, new FloatingButtonUI());
+            mainMenu.add(l, "card3");
+            titleBar.init(this);
+            drawer = Drawer.newDrawer(this)
+                    .header(new AdminHeader())
+                    .space(5)
+                    .enableScroll(true)
+                    .addChild(new DrawerItem("Order Request").build())
+                    .addChild(new DrawerItem("Resolved Delivery").build())
+                    .addChild(new DrawerItem("Unresolved Delivery").build())
+                    .addChild(new DrawerItem("Products").build())
+                    .addFooter(new DrawerItem("Sign out").icon(new ImageIcon(getClass().getResource("/icon/exit.png"))).build())
+                    .event(new EventDrawer() {
+                        @Override
+                        public void selected(int i, DrawerItem di) {
+                            //System.out.println(i);
+                            switch (i) {
+                                case 0:
+                                    currentComponent = orderRequest;
+                                    showForm(currentComponent);
+                                    break;
+                                case 1:
+                                    currentComponent = resolvedDelivery;
+                                    showForm(currentComponent);
+                                    break;
+                                case 2:
+                                    currentComponent = unresolvedDelivery;
+                                    showForm(currentComponent);
+                                    break;
+                                case 3:
+                                    currentComponent = products;
+                                    showForm(l);
+                                    break;
+                                case 4: {
+                                    try {
+                                        socket.close();
+                                        System.out.println("Client disconnected: ID " + id + " Role " + "REQUISITION_MANAGER");
+                                    } catch (IOException ex) {
+                                        Logger.getLogger(UserPanel.class.getName()).log(Level.SEVERE, null, ex);
+                                    } finally {
+                                        dispose();
+                                        Login login = new Login();
+                                        login.setVisible(true);
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    })
+                    .build();
+        } catch (IOException ex) {
+            Logger.getLogger(AdminPanel.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        currentComponent = orderRequest;
+        showForm(currentComponent);
+    }
+
     private void showForm(Component c) {
         mainMenu.removeAll();
         mainMenu.repaint();
         mainMenu.revalidate();
-        
+
         mainMenu.add(c);
         mainMenu.repaint();
         mainMenu.revalidate();
     }
     
+    private void refresh(Object form) {
+        if (form instanceof OrderRequestForm) {
+            OrderRequestForm c = (OrderRequestForm) form;
+            c.refresh();
+        } else if (form instanceof ResolvedDeliveryForm) {
+            ResolvedDeliveryForm c = (ResolvedDeliveryForm) form;
+            c.refresh();
+        } else if (form instanceof UnresolvedDeliveryForm) {
+            UnresolvedDeliveryForm c = (UnresolvedDeliveryForm) form;
+            c.refresh();
+        } else if (form instanceof ProductsForm) {
+            ProductsForm c = (ProductsForm) form;
+            c.refresh();
+        }
+    }
+
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -94,6 +151,7 @@ public class AdminPanel extends javax.swing.JFrame {
         titleBar = new titlebar.SimpleTitleBar();
         jPanel1 = new javax.swing.JPanel();
         menuButton = new javax.swing.JButton();
+        refreshButton = new javax.swing.JButton();
         mainMenu = new javax.swing.JPanel();
         orderRequest = new main.OrderRequestForm();
         resolvedDelivery = new main.ResolvedDeliveryForm();
@@ -112,9 +170,21 @@ public class AdminPanel extends javax.swing.JFrame {
         menuButton.setBorder(null);
         menuButton.setBorderPainted(false);
         menuButton.setContentAreaFilled(false);
+        menuButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         menuButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 menuButtonActionPerformed(evt);
+            }
+        });
+
+        refreshButton.setIcon(new javax.swing.ImageIcon(getClass().getResource("/icon/refresh.png"))); // NOI18N
+        refreshButton.setBorder(null);
+        refreshButton.setBorderPainted(false);
+        refreshButton.setContentAreaFilled(false);
+        refreshButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        refreshButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                refreshButtonActionPerformed(evt);
             }
         });
 
@@ -124,11 +194,16 @@ public class AdminPanel extends javax.swing.JFrame {
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addComponent(menuButton, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, 0)
+                .addComponent(refreshButton, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(0, 0, Short.MAX_VALUE))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(menuButton, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addComponent(menuButton, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, Short.MAX_VALUE))
+            .addComponent(refreshButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
 
         mainMenu.setLayout(new java.awt.CardLayout());
@@ -181,6 +256,10 @@ public class AdminPanel extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_menuButtonActionPerformed
 
+    private void refreshButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_refreshButtonActionPerformed
+        refresh(currentComponent);
+    }//GEN-LAST:event_refreshButtonActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -207,9 +286,11 @@ public class AdminPanel extends javax.swing.JFrame {
             java.util.logging.Logger.getLogger(AdminPanel.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
         //</editor-fold>
+        //</editor-fold>
 
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
+            @Override
             public void run() {
                 new AdminPanel().setVisible(true);
             }
@@ -222,6 +303,7 @@ public class AdminPanel extends javax.swing.JFrame {
     private javax.swing.JPanel mainMenu;
     private javax.swing.JButton menuButton;
     private main.OrderRequestForm orderRequest;
+    private javax.swing.JButton refreshButton;
     private main.ResolvedDeliveryForm resolvedDelivery;
     private titlebar.SimpleTitleBar titleBar;
     private main.UnresolvedDeliveryForm unresolvedDelivery;

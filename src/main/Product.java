@@ -11,72 +11,73 @@ package main;
  */
 public class Product {
     
+    private int modelID;
     private String modelName;
     private String category;
     private int quantity;
     private double price;
+    
+    public Product() {
+    }
+    
+    public Product(int modelID, String modelName, String category, double price) {
+        this.modelID = modelID;
+        this.modelName = modelName;
+        this.category = category;
+        this.quantity = 0;
+        this.price = price;
+    }
 
-    Product(String modelName, String category, int quantity, double price) {
+    public Product(int modelID, String modelName, String category, int quantity, double price) {
+        this.modelID = modelID;
         this.modelName = modelName;
         this.category = category;
         this.quantity = quantity;
         this.price = price;
     }
 
-    /**
-     * @return the modelName
-     */
     public String getModelName() {
         return modelName;
     }
 
-    /**
-     * @param modelName the modelName to set
-     */
     public void setModelName(String modelName) {
         this.modelName = modelName;
     }
 
-    /**
-     * @return the category
-     */
     public String getCategory() {
         return category;
     }
 
-    /**
-     * @param category the category to set
-     */
     public void setCategory(String category) {
         this.category = category;
     }
 
-    /**
-     * @return the quantity
-     */
     public int getQuantity() {
         return quantity;
     }
 
-    /**
-     * @param quantity the quantity to set
-     */
     public void setQuantity(int quantity) {
         this.quantity = quantity;
     }
 
-    /**
-     * @return the price
-     */
     public double getPrice() {
         return price;
     }
 
-    /**
-     * @param price the price to set
-     */
     public void setPrice(double price) {
         this.price = price;
+    }
+
+    public int getModelID() {
+        return modelID;
+    }
+
+    public void setModelID(int modelID) {
+        this.modelID = modelID;
+    }
+
+    private String getModelNameFromDB() {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
     
 }
