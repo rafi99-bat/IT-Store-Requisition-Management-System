@@ -91,7 +91,7 @@ public class AdminPanel extends javax.swing.JFrame {
                                 case 4: {
                                     try {
                                         socket.close();
-                                        System.out.println("Client disconnected: ID " + id + " Role " + "REQUISITION_MANAGER");
+                                        //System.out.println("Client disconnected: ID " + id + " Role " + "REQUISITION_MANAGER");
                                     } catch (IOException ex) {
                                         Logger.getLogger(UserPanel.class.getName()).log(Level.SEVERE, null, ex);
                                     } finally {

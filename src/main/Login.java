@@ -57,6 +57,7 @@ public class Login extends javax.swing.JFrame {
         initComponents();
         simpleLoginButtonBar1.initEvent(this);
         initMoving(this);
+        roleField.setSelectedItem(null);
     }
 
     /**

@@ -95,7 +95,7 @@ public class UserPanel extends javax.swing.JFrame {
                                 case 4: {
                                     try {
                                         socket.close();
-                                        System.out.println("Client disconnected: ID " + id + " Role " + "BRANCH_REPRESENTATIVE");
+                                        //System.out.println("Client disconnected: ID " + id + " Role " + "BRANCH_REPRESENTATIVE");
                                     } catch (IOException ex) {
                                         Logger.getLogger(UserPanel.class.getName()).log(Level.SEVERE, null, ex);
                                     } finally {
