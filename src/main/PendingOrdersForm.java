@@ -77,7 +77,7 @@ public class PendingOrdersForm extends javax.swing.JPanel implements RefreshButt
                         if ("PRODUCT_NOT_FOUND".equals(client.getResponse())) {
                             JOptionPane.showMessageDialog(null, "Sorry, unable to process your updated request as the desired product is not available anymore.", "Update Error", JOptionPane.ERROR_MESSAGE);
                         } else if ("ORDER_UPDATED".equals(client.getResponse())) {
-                            refresh();
+                            showPendingOrders();
                         } else if ("ORDER_COULD_NOT_UPDATE".equals(client.getResponse())) {
                             JOptionPane.showMessageDialog(null, "Sorry, unable to process your updated request as the desired quantity exceeds the current stock availability.", "Update Error", JOptionPane.ERROR_MESSAGE);
                         }
@@ -93,7 +93,7 @@ public class PendingOrdersForm extends javax.swing.JPanel implements RefreshButt
                 try {
                     client.sendRequest("DELECT_ORDER", orderID);
                     if ("DELETION_SUCCESS".equals(client.getResponse())) {
-                        refresh();
+                        showPendingOrders();
                     } else if ("DELETION_FAILED".equals(client.getResponse())) {
                         JOptionPane.showMessageDialog(null, "Sorry, unable to delete your order. Please try again", "Delete Error", JOptionPane.ERROR_MESSAGE);
                     }
@@ -163,7 +163,7 @@ public class PendingOrdersForm extends javax.swing.JPanel implements RefreshButt
     private ArrayList<Order> pendingOrders() {
         ArrayList<Order> list = new ArrayList<>();
         try {
-            ResultSet rs = new DB().executeQuery("SELECT * FROM ActiveUserRequest WHERE BranchID = " + "'" + client.getUserID() + "' " + "AND Status = 'pending'");
+            ResultSet rs = new DB().executeQuery("SELECT * FROM ActiveUserRequest WHERE BranchID = " + "'" + client.getUserID() + "' " + "AND Status = 'pending' ORDER BY OrderID DESC");
             Order order;
             while (rs.next()) {
                 order = new Order(rs.getInt("OrderID"), rs.getInt("ProductID"), rs.getInt("Quantity"), rs.getDouble("Price"), rs.getString("Date"), rs.getString("Status"), rs.getInt("BranchID"));

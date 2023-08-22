@@ -94,7 +94,7 @@ public class UnresolvedDeliveryForm extends javax.swing.JPanel implements Refres
     private ArrayList<Order> unresolvedDeliveryList() {
         ArrayList<Order> list = new ArrayList<>();
         try {
-            ResultSet rs = new DB().executeQuery("SELECT * FROM UnresolvedDelivary");
+            ResultSet rs = new DB().executeQuery("SELECT * FROM UnresolvedDelivary ORDER BY OrderID DESC");
             Order order;
             while (rs.next()) {
                 order = new Order(rs.getInt("OrderID"), rs.getInt("ProductID"), rs.getInt("Quantity"), 0, rs.getString("Date"), "declined", rs.getInt("BranchID"));

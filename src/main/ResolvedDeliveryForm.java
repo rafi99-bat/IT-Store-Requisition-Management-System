@@ -94,7 +94,7 @@ public class ResolvedDeliveryForm extends javax.swing.JPanel implements RefreshB
     private ArrayList<Order> resolvedDeliveryList() {
         ArrayList<Order> list = new ArrayList<>();
         try {
-            ResultSet rs = new DB().executeQuery("SELECT * FROM ResolvedDelivary");
+            ResultSet rs = new DB().executeQuery("SELECT * FROM ResolvedDelivary ORDER BY OrderID DESC");
             Order order;
             while (rs.next()) {
                 order = new Order(rs.getInt("OrderID"), rs.getInt("ProductID"), rs.getInt("Quantity"), rs.getDouble("Price"), rs.getString("Date"), "accepted", rs.getInt("BranchID"));

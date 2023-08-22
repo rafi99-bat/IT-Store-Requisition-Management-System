@@ -247,13 +247,13 @@ public class Server {
                                     ResultSet rs = new DB().executeQuery("SELECT * FROM Product WHERE ModelName = '" + parts[3] + "'");
                                     Product product = null;
                                     while (rs.next()) {
-                                        product = new Product(rs.getInt("ModelID"), rs.getString("ModelName"), rs.getString("Category"), rs.getInt("Qunatity"), rs.getDouble("Price"));
+                                        product = new Product(rs.getInt("ModelID"), rs.getString("ModelName"), rs.getString("Category"), rs.getInt("Quantity"), rs.getDouble("Price"));
                                     }
                                     if (product != null) {
                                         if (product.getQuantity() < Integer.parseInt(parts[4])) {
                                             out.println("ORDER_COULD_NOT_UPDATE");
                                         } else {
-                                            new DB().updateQuery("UPDATE ActiveUserRequest SET Price = ? * ?, Quantity = ? WHERE OrderID = ?", Double.toString(product.getPrice()), parts[4], parts[4], parts[2]);
+                                            new DB().updateQuery("UPDATE ActiveUserRequest SET Price = TRY_CONVERT(DECIMAL(20,2), ?) * ?, Quantity = ? WHERE OrderID = ?", Double.toString(product.getPrice()), parts[4], parts[4], parts[2]);
                                             out.println("ORDER_UPDATED");
                                         }
                                     } else {

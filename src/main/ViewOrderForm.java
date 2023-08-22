@@ -95,7 +95,7 @@ public class ViewOrderForm extends javax.swing.JPanel implements RefreshButtonFu
     private ArrayList<Order> orderList() {
         ArrayList<Order> list = new ArrayList<>();
         try {
-            ResultSet rs = new DB().executeQuery("SELECT * FROM ActiveUserRequest WHERE BranchID = " + "'" + client.getUserID() + "'");
+            ResultSet rs = new DB().executeQuery("SELECT * FROM ActiveUserRequest WHERE BranchID = " + "'" + client.getUserID() + "' ORDER BY OrderID DESC");
             Order order;
             while (rs.next()) {
                 order = new Order(rs.getInt("OrderID"), rs.getInt("ProductID"), rs.getInt("Quantity"), rs.getDouble("Price"), rs.getString("Date"), rs.getString("Status"), rs.getInt("BranchID"));

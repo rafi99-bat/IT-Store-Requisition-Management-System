@@ -74,7 +74,7 @@ public class OrderRequestForm extends javax.swing.JPanel implements RefreshButto
                     try {
                         client.sendRequest("RESPOND_ORDER", jTable1.getModel().getValueAt(row, 0).toString(), jTable1.getModel().getValueAt(row, 1).toString(), "accepted");
                         if ("ORDER_ACCEPTED_SUCCESSFULLY".equals(client.getResponse())) {
-                            refresh();
+                            showOrderRequest();
                         } else if ("ORDER_ACCEPT_FAILED".equals(client.getResponse())) {
                             JOptionPane.showMessageDialog(null, "Failed to accept request. Product stock is lower than requested.", "Error", JOptionPane.ERROR_MESSAGE);
                         }
@@ -85,7 +85,7 @@ public class OrderRequestForm extends javax.swing.JPanel implements RefreshButto
                     try {
                         client.sendRequest("RESPOND_ORDER", jTable1.getModel().getValueAt(row, 0).toString(), jTable1.getModel().getValueAt(row, 1).toString(), "declined");
                         if ("ORDER_DECLINED_SUCCESSFULLY".equals(client.getResponse())) {
-                            refresh();
+                            showOrderRequest();
                         } else if ("ORDER_DECLINE_FAILED".equals(client.getResponse())) {
                             JOptionPane.showMessageDialog(null, "Failed to execute operation.", "Error", JOptionPane.ERROR_MESSAGE);
                         }
@@ -155,7 +155,7 @@ public class OrderRequestForm extends javax.swing.JPanel implements RefreshButto
     private ArrayList<Order> orderRequestList() {
         ArrayList<Order> list = new ArrayList<>();
         try {
-            ResultSet rs = new DB().executeQuery("SELECT * FROM ActiveUserRequest WHERE Status = 'pending'");
+            ResultSet rs = new DB().executeQuery("SELECT * FROM ActiveUserRequest WHERE Status = 'pending' ORDER BY OrderID DESC");
             Order order;
             while (rs.next()) {
                 order = new Order(rs.getInt("OrderID"), rs.getInt("ProductID"), rs.getInt("Quantity"), rs.getDouble("Price"), rs.getString("Date"), rs.getString("Status"), rs.getInt("BranchID"));

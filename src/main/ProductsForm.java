@@ -51,12 +51,12 @@ public class ProductsForm extends javax.swing.JPanel implements RefreshButtonFun
         TableActionEvent event = new TableActionEvent() {
             @Override
             public void onEdit(int row) {
-                JLabel categoryField = new JLabel(productTable.getModel().getValueAt(row, 1).toString());
+                JLabel categoryField = new JLabel(productTable.getModel().getValueAt(row, 2).toString());
                 categoryField.setFont(new Font("SansSerif", Font.BOLD, 14));
-                JLabel mNameField = new JLabel(productTable.getModel().getValueAt(row, 0).toString());
+                JLabel mNameField = new JLabel(productTable.getModel().getValueAt(row, 1).toString());
                 mNameField.setFont(new Font("SansSerif", Font.BOLD, 14));
-                JTextField priceField = new JTextField(productTable.getModel().getValueAt(row, 3).toString());
-                JTextField quantityField = new JTextField(productTable.getModel().getValueAt(row, 2).toString());
+                JTextField priceField = new JTextField(productTable.getModel().getValueAt(row, 4).toString());
+                JTextField quantityField = new JTextField(productTable.getModel().getValueAt(row, 3).toString());
                 final JComponent[] inputs = new JComponent[]{
                     new JLabel("Category:"),
                     categoryField,
