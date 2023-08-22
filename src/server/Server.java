@@ -19,6 +19,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -36,13 +37,12 @@ public class Server {
     ServerSocket serverSocket;
     static int port;
 
-    private static List<ClientHandler> connectedClients = new ArrayList<>();
+    private static List<ClientHandler> connectedClients = new CopyOnWriteArrayList<>();;
 
     public Server(int port) throws IOException {
         Server.port = port;
         serverSocket = new ServerSocket(port);
         System.out.println("Server started and waiting for connections...");
-        //new Thread(this::startCLI).start();
     }
 
     public void initializeClient() throws IOException {
@@ -68,8 +68,8 @@ public class Server {
 
                 switch (command) {
                     case "/quit":
-                        shutdown(running);
-                        //running = false;
+                        shutdown();
+                        running = false;
                         System.exit(0);
                         break;
                     case "/disconnect":
@@ -103,7 +103,7 @@ public class Server {
         System.out.println("/help - shows this help message.");
     }
 
-    private void shutdown(boolean running) {
+    private void shutdown() {
         lock.lock();
         try {
             // Iterate through your list of connected clients and disconnect them
@@ -114,10 +114,9 @@ public class Server {
                     //Logger.getLogger(ClientHandler.class.getName()).log(Level.SEVERE, null, ex);
                 }
                 connectedClients.remove(client);
-                System.out.println("Disconnected client during server shutdown: ID " + client.id + " Role " + client.clientRole);
+                //System.out.println("Disconnected client during server shutdown: ID " + client.id + " Role " + client.clientRole);
             }
             // Close the server socket
-            running = false;
             try {
                 serverSocket.close();
             } catch (IOException ex) {
@@ -141,7 +140,7 @@ public class Server {
                         Logger.getLogger(ClientHandler.class.getName()).log(Level.SEVERE, null, ex);
                     }
                     connectedClients.remove(client);
-                    System.out.println("Client disconnected: ID " + client.id + " Role " + client.clientRole);
+                    //System.out.println("Client disconnected: ID " + client.id + " Role " + client.clientRole);
                     return;
                 }
             }
@@ -164,6 +163,17 @@ public class Server {
             }
         } finally {
             lock.unlock();
+        }
+    }
+
+    static class ClientInfo {
+
+        int id;
+        String role;
+
+        ClientInfo(int id, String role) {
+            this.id = id;
+            this.role = role;
         }
     }
 
@@ -196,7 +206,7 @@ public class Server {
 
                 System.out.println("Client connected: ID " + id + " " + clientRole + " " + socket.getInetAddress().getHostAddress());
 
-                // Add the new client to the connectedClients list
+                // Add the client to the connectedClients list
                 lock.lock();
                 try {
                     connectedClients.add(this);
