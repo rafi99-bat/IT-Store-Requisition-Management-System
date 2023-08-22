@@ -77,6 +77,7 @@ public class PendingOrdersForm extends javax.swing.JPanel implements RefreshButt
                         if ("PRODUCT_NOT_FOUND".equals(client.getResponse())) {
                             JOptionPane.showMessageDialog(null, "Sorry, unable to process your updated request as the desired product is not available anymore.", "Update Error", JOptionPane.ERROR_MESSAGE);
                         } else if ("ORDER_UPDATED".equals(client.getResponse())) {
+                            JOptionPane.showMessageDialog(null, "Request updated successfully.");
                             showPendingOrders();
                         } else if ("ORDER_COULD_NOT_UPDATE".equals(client.getResponse())) {
                             JOptionPane.showMessageDialog(null, "Sorry, unable to process your updated request as the desired quantity exceeds the current stock availability.", "Update Error", JOptionPane.ERROR_MESSAGE);

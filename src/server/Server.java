@@ -254,6 +254,7 @@ public class Server {
                                             out.println("ORDER_COULD_NOT_UPDATE");
                                         } else {
                                             new DB().updateQuery("UPDATE ActiveUserRequest SET Price = TRY_CONVERT(DECIMAL(20,2), ?) * ?, Quantity = ? WHERE OrderID = ?", Double.toString(product.getPrice()), parts[4], parts[4], parts[2]);
+                                            new DB().updateQuery("UPDATE UnresolvedDelivary SET Quantity = ? WHERE OrderID = ?", parts[4], parts[2]);
                                             out.println("ORDER_UPDATED");
                                         }
                                     } else {
